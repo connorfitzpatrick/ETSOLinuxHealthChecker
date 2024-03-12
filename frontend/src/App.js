@@ -21,18 +21,15 @@ const App = () => {
   const handleSubmit = async (serverList) => {
     const serverNames = serverList.split(/\r?\n/);
     try {
-      const response = await fetch(
-        "http://localhost:8000/myApp/process_servers/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            // Send connection ID in headers
-            "X-Connection-ID": connectionId,
-          },
-          body: JSON.stringify({ serverNames }),
-        }
-      );
+      const response = await fetch("http://localhost:8000/process_servers/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // Send connection ID in headers
+          "X-Connection-ID": connectionId,
+        },
+        body: JSON.stringify({ serverNames }),
+      });
 
       if (!response.ok) {
         throw new Error("Server error");
@@ -77,7 +74,7 @@ const App = () => {
 
       // Establish an EventSource connection for receiving server events
       const eventSource = new EventSource(
-        `http://localhost:8000/myApp/process_servers/?id=${connectionId}`
+        `http://localhost:8000/process_servers/?id=${connectionId}`
       );
 
       eventSource.onmessage = (event) => {

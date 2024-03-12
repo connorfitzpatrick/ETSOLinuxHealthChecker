@@ -39,3 +39,9 @@ How to SSH into docker container via command line:
 If you get an error for the key having changed enter this command:
 
 - `ssh-keygen -R "[localhost]:2204"`
+
+`cd` into backend
+run `source venv/bin/activate` on MacOS
+
+- On Windows run `venv\Scripts\activate`
+- `flask run`
