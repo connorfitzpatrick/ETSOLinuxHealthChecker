@@ -1,5 +1,6 @@
 # File we will run to start application
 # Imports app instance from /app package and calls run on it
+# run.py
 from app import create_app
 
 app = create_app()
