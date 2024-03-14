@@ -5,7 +5,7 @@ This file is in charge of defining the logic of HTTP request handlers of the app
 from flask import request, Blueprint, jsonify, Response, stream_with_context
 from flask_cors import cross_origin
 import json
-from .utils.server_utils import process_server_health, start_kafka_consumer, process_servers_task
+from .utils.server_utils import process_server_health, start_kafka_consumer
 from confluent_kafka import Producer
 from threading import Thread
 import time
@@ -13,8 +13,6 @@ import logging
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka import KafkaProducer
 from .shared import redis_client as cache
-import jsonpickle
-
 
 # Your existing view logic, adapted for Flask
 
@@ -50,12 +48,12 @@ def process_servers():
         }
 
         print(connection_states[connection_id])
-        # process_server_health(servers, connection_id)
+        process_server_health(servers, connection_id)
 
         # Start process_server_health in a background thread
         # thread = Thread(target=process_server_health, args=(servers, connection_id))
         # thread.start()
-        process_servers_task.delay(servers, connection_id)
+        # process_servers_task.delay(servers, connection_id)
 
         return jsonify({'message': 'Server processing started'}), 200
 

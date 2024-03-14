@@ -9,7 +9,7 @@ import time
 import logging
 from threading import current_thread
 from ..shared import redis_client as cache
-from celery import Celery
+#from celery import Celery
 import asyncssh
 import asyncio
 import json
@@ -291,12 +291,7 @@ def parse_server_health_results(outputs, server_name):
     print("END OF PARSING")
     return results
 
-@celery.task
-def process_servers_task(servers, connection_id):
-    for server in servers:
-        process_server_health(server, connection_id)
-
-def process_server_health(server, connection_id):
+def process_server_health(servers, connection_id):
     print("IN process_server_health() function!")
     # Init SSH Connection Parameters
     hostname = 'localhost'
@@ -309,98 +304,99 @@ def process_server_health(server, connection_id):
     host_to_port = {}
     # for server in server_list:
     # for server in servers:
-    cache_key = connection_id + "-" + server
-    port = docker_get_host_port(server)
-    host_to_port[server] = port
-
-    if not port: 
-        result = {
-            'overall_state': 'Error',
-            'ping_status': 'Error',
-            'general_info': {
-                'date': '',
-                'uptime': '',
-                'users': '',
-                'load_average': '',
-                'operating_system_name': '',
-            },
-            'inode_info': {
-                'inode_health_status': '',
-                'inode_issues': '',
-                'inode_data': '',
-            },
-            'filesystem_info': {
-                'filesystem_health_status': '',
-                'filesystem_issues': '',
-                'filesystem_data': [],
-            },
-            'cpu_use_info': {
-                'cpu_use_health_status': '',
-                'cpu_use_issues': '',
-                'cpu_use_data': '',
-            },
-            'ntp_info': {
-                'ntp_health_status': '',
-            },
-            'server_issues': {},
-            'logs': [],
-        }
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    try:
-        # Connect to the Docker container
-        # client.connect(hostname, port=port, username=username, password=password, timeout=connection_timeout)
-        print("GOING TO TRY TO CONNECT!")
-        client.connect(hostname, port=port, username=username, password=password, timeout=connection_timeout)
-
-        commands = (
-                'cat /etc/os-release',
-                'date; uptime; cat /etc/os-release',
-                'df -i',
-                'df -h',
-                'sar -u 2 5',
-                'tail -n 70 /var/log/dpkg.log',
-            )
-        print("GOING TO RUN COMMANDS")
-        delimiter = "END_OF_COMMAND_OUTPUT"
-        command = '; echo "{}"; '.format(delimiter).join(commands) + '; echo "{}"'.format(delimiter)
-        stdin, stdout, stderr = client.exec_command(command)
-        output = stdout.read().decode('utf-8')
-            
-        outputs = output.split(delimiter)
-        # Strip each output to remove leading + trailing whitespace
-        outputs = [o.strip() for o in outputs if o.strip()]
-        
-        # parse output
-        result = parse_server_health_results(outputs, server)
-
-        data = {
-            'server_name': server,
-            'status': result,
-            'last_updated': time.time(),
-        }
-        cache.set(cache_key, json.dumps(data))
-        print(f"Completed health check for {server}: {result}")
-
-    except paramiko.ssh_exception.NoValidConnectionsError:
-        print(f'Unable to connect to {server} on port 22')
-    except paramiko.AuthenticationException:
-        print(f'Authentication failed for {server}')
-    except Exception as e:
-        print(f"Exception in when trying to connect for {server}: {e}")
-
-        data = {
-            'server_name': server,
-            'status': {
-                'overall_state': 'Error',
-            },
-            'last_updated': time.time(),
-        }
+    for server in servers:
         cache_key = connection_id + "-" + server
-        # Update server_data in Redis
-        print("SETTING CACHE")
-        cache.set(cache_key, json.dumps(data))
+        port = docker_get_host_port(server)
+        host_to_port[server] = port
+
+        if not port: 
+            result = {
+                'overall_state': 'Error',
+                'ping_status': 'Error',
+                'general_info': {
+                    'date': '',
+                    'uptime': '',
+                    'users': '',
+                    'load_average': '',
+                    'operating_system_name': '',
+                },
+                'inode_info': {
+                    'inode_health_status': '',
+                    'inode_issues': '',
+                    'inode_data': '',
+                },
+                'filesystem_info': {
+                    'filesystem_health_status': '',
+                    'filesystem_issues': '',
+                    'filesystem_data': [],
+                },
+                'cpu_use_info': {
+                    'cpu_use_health_status': '',
+                    'cpu_use_issues': '',
+                    'cpu_use_data': '',
+                },
+                'ntp_info': {
+                    'ntp_health_status': '',
+                },
+                'server_issues': {},
+                'logs': [],
+            }
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        try:
+            # Connect to the Docker container
+            # client.connect(hostname, port=port, username=username, password=password, timeout=connection_timeout)
+            print("GOING TO TRY TO CONNECT!")
+            client.connect(hostname, port=port, username=username, password=password, timeout=connection_timeout)
+
+            commands = (
+                    'cat /etc/os-release',
+                    'date; uptime; cat /etc/os-release',
+                    'df -i',
+                    'df -h',
+                    'sar -u 2 5',
+                    'tail -n 70 /var/log/dpkg.log',
+                )
+            print("GOING TO RUN COMMANDS")
+            delimiter = "END_OF_COMMAND_OUTPUT"
+            command = '; echo "{}"; '.format(delimiter).join(commands) + '; echo "{}"'.format(delimiter)
+            stdin, stdout, stderr = client.exec_command(command)
+            output = stdout.read().decode('utf-8')
+                
+            outputs = output.split(delimiter)
+            # Strip each output to remove leading + trailing whitespace
+            outputs = [o.strip() for o in outputs if o.strip()]
+            
+            # parse output
+            result = parse_server_health_results(outputs, server)
+
+            data = {
+                'server_name': server,
+                'status': result,
+                'last_updated': time.time(),
+            }
+            cache.set(cache_key, json.dumps(data))
+            print(f"Completed health check for {server}: {result}")
+
+        except paramiko.ssh_exception.NoValidConnectionsError:
+            print(f'Unable to connect to {server} on port 22')
+        except paramiko.AuthenticationException:
+            print(f'Authentication failed for {server}')
+        except Exception as e:
+            print(f"Exception in when trying to connect for {server}: {e}")
+
+            data = {
+                'server_name': server,
+                'status': {
+                    'overall_state': 'Error',
+                },
+                'last_updated': time.time(),
+            }
+            cache_key = connection_id + "-" + server
+            # Update server_data in Redis
+            print("SETTING CACHE")
+            cache.set(cache_key, json.dumps(data))
                 
         # return jsonpickle.encode(results)
 

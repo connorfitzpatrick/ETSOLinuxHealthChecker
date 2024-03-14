@@ -1,6 +1,10 @@
-Run backend by cding into myBackend and running:
+To enter python venv:
 
-- `python manage.py runserver 8000`
+- `source venv/bin/activate`
+
+  Run backend by cding into myBackend and running:
+
+- `flask run --port 8000`
 
 Run frontend by cding into frontend and running:
 

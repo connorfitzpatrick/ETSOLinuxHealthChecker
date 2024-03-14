@@ -3,7 +3,7 @@
 from flask import Flask, current_app
 from flask_cors import CORS
 from threading import Thread
-from celery import Celery
+# from celery import Celery
 from .config import Config
 from .utils.server_utils import start_kafka_consumer
 import redis
@@ -18,10 +18,10 @@ def create_app():
     # app.config['CELERY_RESULT_BACKEND'] = 'rpc'
 
     # celeryconfig.py
-    app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
-    app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-    celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
-    celery.conf.update(app.config)
+    # app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+    # app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
+    # celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
+    # celery.conf.update(app.config)
 
     CORS(app, resources={r"/process_servers/*": {"origins": ["http://localhost:3000"]}})
 
