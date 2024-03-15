@@ -4,12 +4,12 @@ This file is in charge of defining the logic of HTTP request handlers of the app
 # views.py
 from flask import request, Blueprint, jsonify, Response, stream_with_context
 from flask_cors import cross_origin
+from .shared import cache
 import json
 from .utils.server_utils import process_server_health
 from threading import Thread
 import time
 import logging
-from .shared import redis_client as cache
 import asyncio
 import tracemalloc
 

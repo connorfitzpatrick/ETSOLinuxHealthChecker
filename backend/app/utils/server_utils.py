@@ -7,8 +7,10 @@ from concurrent.futures import ThreadPoolExecutor
 import time
 import logging
 from threading import current_thread
-from ..shared import redis_client as cache
+# from ..shared import redis_client as cache
 #from celery import Celery
+from ..shared import cache
+
 import asyncssh
 import asyncio
 import json
@@ -274,7 +276,8 @@ async def process_server_health(servers, connection_id):
                     'last_updated': time.time(),
                 }
                 cache_key = connection_id + "-" + server
-                cache.set(cache_key, json.dumps(result))
+                # cache.set(cache_key, json.dumps(result))
+                cache.set(cache_key, json.dumps(result), timeout=60)
                 print("No port for " + server)
                 return result
             print("Will run asyncssh.connect")
@@ -304,7 +307,8 @@ async def process_server_health(servers, connection_id):
                     'status': result,
                     'last_updated': time.time(),
                 }
-                cache.set(cache_key, json.dumps(output))
+                # cache.set(cache_key, json.dumps(output))
+                cache.set(cache_key, json.dumps(output), timeout=60)
                 return output
         except (asyncssh.Error, OSError) as e:
             # Handle connection or command execution errors

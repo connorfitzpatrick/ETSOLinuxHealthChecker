@@ -6,7 +6,9 @@ from flask_cors import CORS
 from threading import Thread
 # from celery import Celery
 from .config import Config
-import redis
+# import redis
+# from flask_caching import Cache
+from .shared import cache
 
 
 redis_client = None
@@ -15,6 +17,13 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    # Setup cache
+    # app.config['CACHE_TYPE'] = 'SimpleCache'
+    # app.config['CACHE_DEFAULT_TIMEOUT'] = 300
+    # cache = Cache(app)
+    cache.init_app(app)
+
+    # Global cors configuration
     CORS(app, resources={
         r"/process_servers/*": {"origins": ["http://localhost:3000"]},
         r"/establish_session": {"origins": ["http://localhost:3000"]},
@@ -24,12 +33,4 @@ def create_app():
     from . import views
     app.register_blueprint(views.bp)
     
-    @app.route('/test_async', methods=['GET'])
-    async def test_async():
-        x = await test_async1()
-        return x
-
-    async def test_async1():
-        return jsonify({'message': 'Async route works'}), 200
-
     return app
