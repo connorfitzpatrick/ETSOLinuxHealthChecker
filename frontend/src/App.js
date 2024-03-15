@@ -19,6 +19,21 @@ const App = () => {
   }, [results]);
 
   const handleSubmit = async (serverList) => {
+    // Establish session with connectionID
+    try {
+      const response = await fetch("http://localhost:8000/establish_session", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          // Send connection ID in headers
+          "X-Connection-ID": connectionId,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to establish session:", error);
+    }
+
+    // POST server names
     const serverNames = serverList.split(/\r?\n/);
     try {
       const response = await fetch("http://localhost:8000/process_servers/", {

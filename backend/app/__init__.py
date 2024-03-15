@@ -15,7 +15,10 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    CORS(app, resources={r"/process_servers/*": {"origins": ["http://localhost:3000"]}})
+    CORS(app, resources={
+        r"/process_servers/*": {"origins": ["http://localhost:3000"]},
+        r"/establish_session": {"origins": ["http://localhost:3000"]},
+    })
 
     # Import views to ensure routes are registered
     from . import views
