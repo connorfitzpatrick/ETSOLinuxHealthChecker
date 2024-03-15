@@ -5,7 +5,7 @@ This file is in charge of defining the logic of HTTP request handlers of the app
 from flask import request, Blueprint, jsonify, Response, stream_with_context
 from flask_cors import cross_origin
 import json
-from .utils.server_utils import process_server_health, test1
+from .utils.server_utils import process_server_health
 from threading import Thread
 import time
 import logging
@@ -30,11 +30,10 @@ async def simple_async_test():
 @bp.route('/establish_session', methods=['GET'])
 def establish_connection():
     connection_id = request.headers.get('X-Connection-Id')
-    connection_states[connection_id] = {}
+    connection_states[connection_id] = {'servers': []}
     return jsonify({'message': 'Session with Connection ID ' + connection_id + ' established'}), 200
 
 @bp.route('/process_servers/', methods=['POST'])
-# @cross_origin(origins=["http://localhost:3000"])
 async def process_servers():
     # x = await test1()
     # return jsonify({'message': x}), 200
@@ -59,18 +58,11 @@ async def process_servers():
         }
 
         print(connection_states[connection_id])
-        # x = await process_server_health(servers, connection_id)
-
-        # snapshot = tracemalloc.take_snapshot()
-        # top_stats = snapshot.statistics('lineno')
-        # print("[ Top 10 allocations ]")
-        # for stat in top_stats[:10]:
-        #     print(stat)
+        await process_server_health(servers, connection_id)
 
         return jsonify({'message': 'Server processing started'}), 200
 
 @bp.route('/process_servers/', methods=['GET'])
-@cross_origin(origins=["http://localhost:3000"])
 def get_results():
     if request.method == 'GET':
         # Extract UUID from header
@@ -88,6 +80,7 @@ def get_results():
 def server_events(connection_id, connection_states):
     start_time = time.time()
     timeout = 120  # Timeout after 120 seconds of no updates
+    results_returned = 0
 
     while True:
         all_servers_updated = True
@@ -101,50 +94,28 @@ def server_events(connection_id, connection_states):
             server_update = cache.get(cache_key)
 
             if server_update:
+                print("SERVER UPDATE")
+                print(server_update)
                 server_update = json.loads(server_update)
                 if last_update < server_update['last_updated']:
                     event_data = {'server': server, 'status': server_update['status']}
                     yield f"data: {json.dumps(event_data)}\n\n"
                     connection_states[connection_id]['last_updates'][server] = server_update['last_updated']
+                    results_returned += 1
             else:
                 all_servers_updated = False
 
-            # if server_update and last_update < server_update['last_updated']:
-            #     event_data = {'server': server, 'status': server_update['status']}
-            #     yield f"data: {json.dumps(event_data)}\n\n"
-            #     connection_states[connection_id]['last_updates'][server] = server_update['last_updated']
-            # else:
-            #     all_servers_updated = False
-
-        if all_servers_updated:
+        if all_servers_updated and len(connection_states[connection_id]['servers']) > 0 and results_returned == len(connection_states[connection_id]['servers']):
             print("All Servers are checked. Closing session")
-            # yield "data: {\"message\": \"All servers updated\"}\n\n"
             break
 
         if time.time() - start_time > timeout:
             yield "data: {\"message\": \"Timeout reached\"}\n\n"
             break
-
-        time.sleep(1.5)  # Sleep to prevent a tight loop, adjust as necessary
+        
+        # Sleep to prevent a tight loop
+        time.sleep(1.5)
     
     # Clean up by removing connection state to free resources
     if connection_id in connection_states:
         del connection_states[connection_id]
-
-
-
-
-
-
-    ### GET ###
-    # elif request.method == 'GET':
-    #     # Extract UUID from header
-    #     connection_id = request.args.get('id')
-    #     # Ensure connection_id was already initialized in the POST request
-    #     if connection_id not in connection_states:
-    #         return jsonify({'error': 'Connection not initialized'}), 400
-    #     # Stream results to client
-    #     return Response(stream_with_context(server_events(connection_id, connection_states)), mimetype='text/event-stream')
-
-    # else:
-    #     return jsonify({'message': 'Error: Request could not be processed'}), 405

@@ -19,6 +19,7 @@ const App = () => {
   }, [results]);
 
   const handleSubmit = async (serverList) => {
+    const serverNames = serverList.split(/\r?\n/);
     // Establish session with connectionID
     try {
       const response = await fetch("http://localhost:8000/establish_session", {
@@ -33,10 +34,51 @@ const App = () => {
       console.error("Failed to establish session:", error);
     }
 
+    // Initialize results state with server names after successful POST
+    const initialResults = serverNames.map((serverName) => ({
+      serverName,
+      status: {
+        overall_state: "Loading",
+        ping_status: "",
+        general_info: {
+          date: "",
+          uptime: "",
+          users: "",
+          load_average: "",
+          operating_system_name: "",
+        },
+        inode_info: {
+          inode_health_status: "",
+          inode_issues: [],
+          inode_data: [],
+        },
+        filesystem_info: {
+          filesystem_health_status: "",
+          filesystem_issues: [],
+          filesystem_data: [],
+        },
+        cpu_use_info: {
+          cpu_use_health_status: "",
+          cpu_use_issues: [],
+          cpu_use_data: [],
+        },
+        ntp_info: {
+          ntp_health_status: "",
+        },
+        server_issues: {},
+        logs: [],
+      },
+    }));
+    setResults(initialResults);
+
+    // Establish an EventSource connection for receiving server events
+    const eventSource = new EventSource(
+      `http://localhost:8000/process_servers/?id=${connectionId}`
+    );
+
     // POST server names
-    const serverNames = serverList.split(/\r?\n/);
     try {
-      const response = await fetch("http://localhost:8000/process_servers/", {
+      const response = fetch("http://localhost:8000/process_servers/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -45,52 +87,6 @@ const App = () => {
         },
         body: JSON.stringify({ serverNames }),
       });
-
-      if (!response.ok) {
-        throw new Error("Server error");
-      }
-
-      // Initialize results state with server names after successful POST
-      const initialResults = serverNames.map((serverName) => ({
-        serverName,
-        status: {
-          overall_state: "Loading",
-          ping_status: "",
-          general_info: {
-            date: "",
-            uptime: "",
-            users: "",
-            load_average: "",
-            operating_system_name: "",
-          },
-          inode_info: {
-            inode_health_status: "",
-            inode_issues: [],
-            inode_data: [],
-          },
-          filesystem_info: {
-            filesystem_health_status: "",
-            filesystem_issues: [],
-            filesystem_data: [],
-          },
-          cpu_use_info: {
-            cpu_use_health_status: "",
-            cpu_use_issues: [],
-            cpu_use_data: [],
-          },
-          ntp_info: {
-            ntp_health_status: "",
-          },
-          server_issues: {},
-          logs: [],
-        },
-      }));
-      setResults(initialResults);
-
-      // Establish an EventSource connection for receiving server events
-      const eventSource = new EventSource(
-        `http://localhost:8000/process_servers/?id=${connectionId}`
-      );
 
       eventSource.onmessage = (event) => {
         const eventData = JSON.parse(event.data);

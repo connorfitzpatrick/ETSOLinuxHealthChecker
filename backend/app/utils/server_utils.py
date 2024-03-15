@@ -32,27 +32,6 @@ def get_server_data(server_name):
     data = cache.get(server_name)
     return json.loads(data) if data else {}
 
-def process_server_health_thread(server_name, connection_id):
-    # try:
-    print("Start process_server_health_thread")
-    print(f"Starting health check for {server_name}")
-    # Simulate the health check process
-    # result = {"status": "Healthy", "last_updated": time.time()}
-    result = process_server_health(server_name)
-    data = {
-        'server_name': server_name,
-        'status': result,
-        'last_updated': time.time(),
-    }
-
-    cache_key = connection_id + "-" + server_name
-    # Update server_data in Redis
-    print("SETTING CACHE")
-    cache.set(cache_key, json.dumps(data))
-    print(f"Completed health check for {server_name}: {result}")
-    # except Exception as e:
-    #     print(f"Exception in process_server_health_thread for {server_name}: {e}")
-
 def docker_get_host_port(container_name):
     '''
     Since I am using a bunch of docker containers to simulate having several Linux servers on
@@ -185,18 +164,9 @@ def parse_server_health_results(outputs, server_name):
     results = {}
     # Warning messages will go here
     server_issues = {}
-
-    # parse OS info
-    # os_verion = parse_general_info(outputs[0])
-    # parse inode health
-    # TODO: Parse uptime
-
     general_server_info = parse_general_info(outputs[1])
-
     inode_health_results = parse_inode_health_results(outputs[2], server_name)
-    # parse filesystem health
     filesystem_health_results = parse_filesystem_health_results(outputs[3], server_name)
-    # parse cpu_usage health
     cpu_usage_health_results = parse_cpu_usage_health_results(outputs[4])
 
     print("MADE IT THROUGH PARSING METHODS")
@@ -250,14 +220,7 @@ def parse_server_health_results(outputs, server_name):
     print("END OF PARSING")
     return results
 
-async def test1():
-    return "TEST"
-
-async def test2(servers, connection_id):
-    await process_server_health(servers, connection_id)
-
 async def process_server_health(servers, connection_id):
-    return jsonify({'message': 'Async route works'}), 200
     print("IN process_server_health() function!")
     # Init SSH Connection Parameters
     hostname = 'localhost'
@@ -269,199 +232,94 @@ async def process_server_health(servers, connection_id):
     tasks = []
     host_to_port = {}
 
-    # async def run_health_check(server):
-    #     try:
-    #         port = docker_get_host_port(server)
-    #         if not port:
-    #             # Handle the case when port is not available
-    #             return {
-    #                 'server_name': server,
-    #                 'status': {
-    #                     'overall_state': 'Error',
-    #                     # Other fields as required
-    #                 },
-    #                 'last_updated': time.time(),
-    #             }
+    async def run_health_check(server):
+        print("In run_health_check()")
+        try:
+            port = docker_get_host_port(server)
+            if not port:
+                # Handle the case when port is not available
+                result = {
+                    'server_name': server,
+                    'status': {
+                        'overall_state': 'Error',
+                        'ping_status': 'Error',
+                        'general_info': {
+                            'date': '',
+                            'uptime': '',
+                            'users': '',
+                            'load_average': '',
+                            'operating_system_name': '',
+                        },
+                        'inode_info': {
+                            'inode_health_status': '',
+                            'inode_issues': '',
+                            'inode_data': '',
+                        },
+                        'filesystem_info': {
+                            'filesystem_health_status': '',
+                            'filesystem_issues': '',
+                            'filesystem_data': [],
+                        },
+                        'cpu_use_info': {
+                            'cpu_use_health_status': '',
+                            'cpu_use_issues': '',
+                            'cpu_use_data': '',
+                        },
+                        'ntp_info': {
+                            'ntp_health_status': '',
+                        },
+                        'server_issues': {},
+                        'logs': [],
+                    },
+                    'last_updated': time.time(),
+                }
+                cache_key = connection_id + "-" + server
+                cache.set(cache_key, json.dumps(result))
+                print("No port for " + server)
+                return result
+            print("Will run asyncssh.connect")
+            print(hostname)
+            # Might want to not use known_hosts=None on prod version
+            async with asyncssh.connect(hostname, port=int(port), username=username, password=password, known_hosts=None) as conn:
+                outputs = []
+                for command in (
+                    'cat /etc/os-release',
+                    'date; uptime; cat /etc/os-release',
+                    'df -i',
+                    'df -h',
+                    'sar -u 2 5',
+                    'tail -n 70 /var/log/dpkg.log',
+                ):
+                    result = await conn.run(command)
+                    outputs.append(result.stdout)
 
-    #         async with asyncssh.connect(hostname, port=port, username=username, password=password, timeout=connection_timeout) as conn:
-    #             outputs = []
-    #             for command in (
-    #                 'cat /etc/os-release',
-    #                 'date; uptime; cat /etc/os-release',
-    #                 'df -i',
-    #                 'df -h',
-    #                 'sar -u 2 5',
-    #                 'tail -n 70 /var/log/dpkg.log',
-    #             ):
-    #                 result = await conn.run(command)
-    #                 outputs.append(result.stdout)
+                print("To parse_server_health_results")
+                result = parse_server_health_results(outputs, server)
+                cache_key = connection_id + "-" + server
+                print(f"Completed health check for {server}")
+                # print(f"Completed health check for {server}: {result['status']}")
 
-    #             result = parse_server_health_results(outputs, server)
-    #             return {
-    #                 'server_name': server,
-    #                 'status': result,
-    #                 'last_updated': time.time(),
-    #             }
-    #     except (asyncssh.Error, OSError) as e:
-    #         # Handle connection or command execution errors
-    #         print(f"Exception in when trying to connect for {server}: {e}")
-    #         return {
-    #             'server_name': server,
-    #             'status': {
-    #                 'overall_state': 'Error',
-    #                 # Other fields as required
-    #             },
-    #             'last_updated': time.time(),
-    #         }
-            
+                output = {
+                    'server_name': server,
+                    'status': result,
+                    'last_updated': time.time(),
+                }
+                cache.set(cache_key, json.dumps(output))
+                return output
+        except (asyncssh.Error, OSError) as e:
+            # Handle connection or command execution errors
+            print(f"Exception in when trying to connect for {server}: {e}")
+            return {
+                'server_name': server,
+                'status': {
+                    'overall_state': 'Error',
+                },
+                'last_updated': time.time(),
+            }
+    
+    # What is are these 3 lines doing? Is it waiting to send
+    # Everything back at same time?
     for server in servers:
-        tasks.append(test1())
-        # tasks.append(run_health_check(server))
+        tasks.append(run_health_check(server))
     results = await asyncio.gather(*tasks)
 
-    for result in results:
-        cache_key = connection_id + "-" + result['server_name']
-        cache.set(cache_key, json.dumps(result))
-        print(f"Completed health check for {result['server_name']}: {result['status']}")
-    print("RESULTS")
-    print(results)
-    return {'servers': results}, 200
-                
-        # return jsonpickle.encode(results)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# async def process_server_health(server_name):
-#     # Init SSH Connection Parameters
-#     hostname = 'localhost'
-#     username = 'remote_user'
-#     password = 'password1234'
-    
-#     # Timeout after 40 seconds
-#     connection_timeout = 10
-
-#     # for server in server_list:
-#     port = docker_get_host_port(server_name)
-#     if not port: 
-
-#         return {
-#             'overall_state': 'Error',
-#             'ping_status': 'Error',
-#             'general_info': {
-#                 'date': '',
-#                 'uptime': '',
-#                 'users': '',
-#                 'load_average': '',
-#                 'operating_system_name': '',
-#             },
-#             'inode_info': {
-#                 'inode_health_status': '',
-#                 'inode_issues': '',
-#                 'inode_data': '',
-#             },
-#             'filesystem_info': {
-#                 'filesystem_health_status': '',
-#                 'filesystem_issues': '',
-#                 'filesystem_data': [],
-#             },
-#             'cpu_use_info': {
-#                 'cpu_use_health_status': '',
-#                 'cpu_use_issues': '',
-#                 'cpu_use_data': '',
-#             },
-#             'ntp_info': {
-#                 'ntp_health_status': '',
-#             },
-#             'server_issues': {},
-#             'logs': [],
-#         }
-#     # Create SSH client
-#     # client = paramiko.SSHClient()
-#     # client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-#     try:
-#         # Connect to the Docker container
-#         # client.connect(hostname, port=port, username=username, password=password, timeout=connection_timeout)
-
-#         async with asyncssh.connect(hostname, username=username, password=password) as conn:
-#             commands = (
-#                 'cat /etc/os-release',
-#                 'date; uptime; cat /etc/os-release',
-#                 'df -i',
-#                 'df -h',
-#                 'sar -u 2 5',
-#                 'tail -n 70 /var/log/dpkg.log',
-#             )
-#             command_results = await asyncio.gather(*[conn.run(cmd) for cmd in commands])
-            
-#             # Process command results
-#             results = {}
-#             print("COMMAND RESULTS")
-#             print(command_results)
-#             print("COMMAND RESULTS")
-
-#             # Process command results
-#             for cmd, result in zip(commands, command_results):
-#                 results[cmd] = result.stdout
-            
-#             print("COMMAND RESULTS")
-#             print(command_results)
-#             print("COMMAND RESULTS")
-
-#         return results
-
-
-#         # Establish SSH connection asynchronously
-#         async with asyncssh.connect(hostname, username=username, password=password) as conn:
-#             # Run commands asynchronously
-#             command_results = await asyncio.gather(
-#                 conn.run(commands[0]),
-#                 conn.run(commands[1]),
-#                 conn.run(commands[2]),
-#                 conn.run(commands[3]),
-#                 conn.run(commands[4]),
-#                 conn.run(commands[5]),
-#             )
-
-#         # delimiter = "END_OF_COMMAND_OUTPUT"
-#         # command = '; echo "{}"; '.format(delimiter).join(commands) + '; echo "{}"'.format(delimiter)
-#         # stdin, stdout, stderr = client.exec_command(command)
-#         # output = stdout.read().decode('utf-8')
-
-
-#         # Split output with delimiter to get a list of command outputs
-#         # outputs[1] = inodes
-#         # outputs[2] = filesystems
-#         # outputs = output.split(delimiter)
-#         # Strip each output to remove leading + trailing whitespace
-#         # outputs = [o.strip() for o in outputs if o.strip()]
-#         # print("received output from VMs?")
-#         # parse output
-#         # results = parse_server_health_results(outputs, server_name)
-#     except paramiko.ssh_exception.NoValidConnectionsError:
-#         print(f'Unable to connect to {server_name} on port 22')
-#     except paramiko.AuthenticationException:
-#         print(f'Authentication failed for {server_name}')
-#     except Exception as e:
-#         print(f"Exception in when trying to connect for {server_name}: {e}")
-
-#         results = {
-#             'overall_state': 'Error',
-#         }
-    
-#     finally:
-#         # Close the SSH connection
-#         client.close()
-        
-#     return results
