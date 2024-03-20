@@ -1,15 +1,9 @@
 # This file would contain the Flask app initialization code.
 # It is where we create and configure the Flask application object
-# __init__.py
-from flask import Flask, current_app, jsonify
+from flask import Flask, jsonify
 from flask_cors import CORS
-from threading import Thread
-# from celery import Celery
 from .config import Config
-# import redis
-# from flask_caching import Cache
 from .shared import cache
-
 
 redis_client = None
 
@@ -17,10 +11,7 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Setup cache
-    # app.config['CACHE_TYPE'] = 'SimpleCache'
-    # app.config['CACHE_DEFAULT_TIMEOUT'] = 300
-    # cache = Cache(app)
+    # Initialize cache
     cache.init_app(app)
 
     # Global cors configuration

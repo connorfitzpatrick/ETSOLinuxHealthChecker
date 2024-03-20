@@ -1,22 +1,13 @@
 # myApp/utils/server_utils.py
 
-import paramiko
 import docker
-from threading import Lock
-from concurrent.futures import ThreadPoolExecutor
 import time
 import logging
-from threading import current_thread
-# from ..shared import redis_client as cache
-#from celery import Celery
 from ..shared import cache
-
 import asyncssh
 import asyncio
 import json
-import jsonpickle
 from flask import jsonify
-
 
 # TO DO: User Authentication
 # Uptime; 
@@ -280,8 +271,6 @@ async def process_server_health(servers, connection_id):
                 cache.set(cache_key, json.dumps(result), timeout=60)
                 print("No port for " + server)
                 return result
-            print("Will run asyncssh.connect")
-            print(hostname)
             # Might want to not use known_hosts=None on prod version
             async with asyncssh.connect(hostname, port=int(port), username=username, password=password, known_hosts=None) as conn:
                 outputs = []
