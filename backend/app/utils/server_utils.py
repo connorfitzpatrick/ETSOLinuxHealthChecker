@@ -1,6 +1,5 @@
 # myApp/utils/server_utils.py
 import time
-import logging
 from ..shared import cache
 import asyncssh
 import asyncio
@@ -16,8 +15,6 @@ from flask import jsonify
 # IDs of users logged into system (Can I do this without root? Can Sudo be used?)
 
 # myApp/utils/server_utils.py
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(threadName)s] %(message)s')
-logger = logging.getLogger(__name__)
 
 def get_server_data(server_name):
     data = cache.get(server_name)

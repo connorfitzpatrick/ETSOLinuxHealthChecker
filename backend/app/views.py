@@ -8,13 +8,8 @@ import json
 from .utils.server_utils import process_server_health
 from threading import Thread
 import time
-import logging
 
 # Your existing view logic, adapted for Flask
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(threadName)s] %(message)s')
-logger = logging.getLogger(__name__)
-
 bp = Blueprint('bp', __name__)
 
 # GLOBAL dictionary for maintaining the state of each connection with a unique ID 
