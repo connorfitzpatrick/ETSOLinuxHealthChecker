@@ -1,6 +1,4 @@
 # myApp/utils/server_utils.py
-
-import docker
 import time
 import logging
 from ..shared import cache
@@ -25,27 +23,27 @@ def get_server_data(server_name):
     data = cache.get(server_name)
     return json.loads(data) if data else {}
 
-def docker_get_host_port(container_name):
-    '''
-    Since I am using a bunch of docker containers to simulate having several Linux servers on
-    my network, I need this function to ask docker what port that specific container resides
-    on. This is more for dev purposes.
-    '''
-    client = docker.from_env()
-    try:
-        container = client.containers.get(container_name)
-        ports = container.attrs['NetworkSettings']['Ports']
-        for container_port, host_ports in ports.items():
-            if host_ports:
-                host_port = host_ports[0]['HostPort']
-                print(f"  Container Port {container_port}/tcp is mapped to Host Port {host_port}")
-                return host_port
-            else:
-                print(f"  Container Port {container_port}/tcp is not mapped to any Host Port")
+# def docker_get_host_port(container_name):
+#     '''
+#     Since I am using a bunch of docker containers to simulate having several Linux servers on
+#     my network, I need this function to ask docker what port that specific container resides
+#     on. This is more for dev purposes.
+#     '''
+#     client = docker.from_env()
+#     try:
+#         container = client.containers.get(container_name)
+#         ports = container.attrs['NetworkSettings']['Ports']
+#         for container_port, host_ports in ports.items():
+#             if host_ports:
+#                 host_port = host_ports[0]['HostPort']
+#                 print(f"  Container Port {container_port}/tcp is mapped to Host Port {host_port}")
+#                 return host_port
+#             else:
+#                 print(f"  Container Port {container_port}/tcp is not mapped to any Host Port")
 
-    except docker.errors.NotFound:
-        print(f"Container '{container_name}' not found.")
-        return None
+#     except docker.errors.NotFound:
+#         print(f"Container '{container_name}' not found.")
+#         return None
 
 def parse_general_info(general_output):
     lines = general_output.strip().split('\n')
@@ -223,56 +221,55 @@ async def process_server_health(servers, connection_id):
     # Timeout after 40 seconds
     connection_timeout = 10
     tasks = []
-    host_to_port = {}
 
     async def run_health_check(server):
         print("In run_health_check()")
         try:
-            port = docker_get_host_port(server)
-            if not port:
-                # Handle the case when port is not available
-                result = {
-                    'server_name': server,
-                    'status': {
-                        'overall_state': 'Error',
-                        'ping_status': 'Error',
-                        'general_info': {
-                            'date': '',
-                            'uptime': '',
-                            'users': '',
-                            'load_average': '',
-                            'operating_system_name': '',
-                        },
-                        'inode_info': {
-                            'inode_health_status': '',
-                            'inode_issues': '',
-                            'inode_data': '',
-                        },
-                        'filesystem_info': {
-                            'filesystem_health_status': '',
-                            'filesystem_issues': '',
-                            'filesystem_data': [],
-                        },
-                        'cpu_use_info': {
-                            'cpu_use_health_status': '',
-                            'cpu_use_issues': '',
-                            'cpu_use_data': '',
-                        },
-                        'ntp_info': {
-                            'ntp_health_status': '',
-                        },
-                        'server_issues': {},
-                        'logs': [],
-                    },
-                    'last_updated': time.time(),
-                }
-                cache_key = connection_id + "-" + server
-                # cache.set(cache_key, json.dumps(result))
-                cache.set(cache_key, json.dumps(result), timeout=60)
-                print("No port for " + server)
-                return result
+            # port = docker_get_host_port(server)
+            # if not port:
+            #     # Handle the case when port is not available
+            #     result = {
+            #         'server_name': server,
+            #         'status': {
+            #             'overall_state': 'Error',
+            #             'ping_status': 'Error',
+            #             'general_info': {
+            #                 'date': '',
+            #                 'uptime': '',
+            #                 'users': '',
+            #                 'load_average': '',
+            #                 'operating_system_name': '',
+            #             },
+            #             'inode_info': {
+            #                 'inode_health_status': '',
+            #                 'inode_issues': '',
+            #                 'inode_data': '',
+            #             },
+            #             'filesystem_info': {
+            #                 'filesystem_health_status': '',
+            #                 'filesystem_issues': '',
+            #                 'filesystem_data': [],
+            #             },
+            #             'cpu_use_info': {
+            #                 'cpu_use_health_status': '',
+            #                 'cpu_use_issues': '',
+            #                 'cpu_use_data': '',
+            #             },
+            #             'ntp_info': {
+            #                 'ntp_health_status': '',
+            #             },
+            #             'server_issues': {},
+            #             'logs': [],
+            #         },
+            #         'last_updated': time.time(),
+            #     }
+            #     cache_key = connection_id + "-" + server
+            #     # cache.set(cache_key, json.dumps(result))
+            #     cache.set(cache_key, json.dumps(result), timeout=60)
+            #     print("No port for " + server)
+            #     return result
             # Might want to not use known_hosts=None on prod version
-            async with asyncssh.connect(hostname, port=int(port), username=username, password=password, known_hosts=None) as conn:
+            async with asyncssh.connect(hostname, port=2201, username=username, password=password, known_hosts=None) as conn:
                 outputs = []
                 for command in (
                     'cat /etc/os-release',
