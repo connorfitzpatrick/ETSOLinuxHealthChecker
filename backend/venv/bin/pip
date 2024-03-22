@@ -1,4 +1,4 @@
-#!/Users/connorfitzpatrick/Desktop/Projects/ETSOLinuxHealthChecker/backend/venv/bin/python3.8
+#!/opt/oss/ETSOLinuxHealthChecker/backend/venv/bin/python3.8
 # -*- coding: utf-8 -*-
 import re
 import sys
